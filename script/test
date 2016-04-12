@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -e
+
+echo "go fmt..."
+test -z "$(gofmt -l -w . | tee /dev/stderr)"
+
+echo "go lint..."
+test -z "$(golint ./... | tee /dev/stderr)"
+
+echo "go vet..."
+test -z "$(go tool vet -test . 2>&1 | tee /dev/stderr)"
+
+echo "go test..."
+go test -race -cover ./...

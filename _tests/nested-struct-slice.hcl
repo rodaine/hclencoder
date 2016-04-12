@@ -1,0 +1,5 @@
+Widget "bar" {
+}
+
+Widget "baz" {
+}

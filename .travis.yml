@@ -1,0 +1,10 @@
+sudo:     false
+language: go
+go:       1.6
+
+install: go get -t ./...
+script:  ./script/test
+
+branches:
+  only:
+    - master

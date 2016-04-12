@@ -1,5 +1,3 @@
-Widget "bar" {
-}
+Widget "bar" {}
 
-Widget "baz" {
-}
+Widget "baz" {}

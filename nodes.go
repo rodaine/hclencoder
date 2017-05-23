@@ -258,9 +258,6 @@ func encodeStruct(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 		// if the item is an object list, we need to flatten out the items
 		if val, ok := val.(*ast.ObjectList); ok {
 			for _, obj := range val.Items {
-				if len(obj.Keys) == 0 {
-					return nil, nil, errors.New("nested struct slice elements must have a key field")
-				}
 				keys := append([]*ast.ObjectKey{itemKey}, obj.Keys...)
 				list.Add(&ast.ObjectItem{
 					Keys: keys,

@@ -8,7 +8,7 @@ echo "go lint..."
 test -z "$(golint ./... | tee /dev/stderr)"
 
 echo "go vet..."
-test -z "$(go tool vet -test . 2>&1 | tee /dev/stderr)"
+test -z "$(go tool vet -all -shadow . 2>&1 | tee /dev/stderr)"
 
 echo "go test..."
 go test -race -cover ./...

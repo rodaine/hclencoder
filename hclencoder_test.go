@@ -104,6 +104,22 @@ func TestEncoder(t *testing.T) {
 			},
 			Output: "nested-struct-slice",
 		},
+		{
+			ID: "nested struct slice no key",
+			Input: struct {
+				Widget []struct {
+					Foo string
+				}
+			}{
+				Widget: []struct {
+					Foo string
+				}{
+					{"bar"},
+					{"baz"},
+				},
+			},
+			Output: "nested-struct-slice-no-key",
+		},
 	}
 
 	for _, test := range tests {
@@ -119,7 +135,11 @@ func TestEncoder(t *testing.T) {
 			}
 
 			assert.NoError(t, err, test.ID)
-			assert.EqualValues(t, string(expected), string(actual), test.ID+"\n"+string(actual))
+			assert.EqualValues(t,
+				string(expected),
+				string(actual),
+				fmt.Sprintf("%s\nExpected:\n%s\nActual:\n%s", test.ID, expected, actual),
+			)
 		}
 	}
 }

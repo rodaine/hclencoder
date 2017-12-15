@@ -349,8 +349,18 @@ func TestEncodeStruct(t *testing.T) {
 		},
 		{
 			ID:    "nested unkeyed struct slice",
-			Input: reflect.ValueOf(struct{ Foo []TestStruct }{[]TestStruct{{}}}),
-			Error: true,
+			Input: reflect.ValueOf(struct{ Foo []TestStruct }{[]TestStruct{{"Test"}}}),
+			Expected: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+				&ast.ObjectItem{
+					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Foo"}}},
+					Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+						&ast.ObjectItem{
+							Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Bar"}}},
+							Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"Test"`}},
+						},
+					}}},
+				},
+			}}},
 		},
 	}
 

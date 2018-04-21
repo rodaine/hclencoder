@@ -9,3 +9,5 @@ Gizmos = [
   5,
   6,
 ]
+
+Single = ["foo"]

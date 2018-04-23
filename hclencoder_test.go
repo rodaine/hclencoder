@@ -53,9 +53,11 @@ func TestEncoder(t *testing.T) {
 			Input: struct {
 				Widgets []string
 				Gizmos  []int
+				Single  []string
 			}{
 				[]string{"foo", "bar", "baz"},
 				[]int{4, 5, 6},
+				[]string{"foo"},
 			},
 			Output: "primitive-lists",
 		},

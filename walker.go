@@ -48,12 +48,16 @@ func positionNodes(node ast.Node, cur cursor, step int) (cursor, error) {
 
 	case *ast.ListType:
 		node.Lbrack = cur.pos()
-		cur = cur.crlf().in(step)
+		if len(node.List) > 1 {
+			cur = cur.crlf().in(step)
+		}
 		for _, item := range node.List {
 			if cur, err = positionNodes(item, cur, step); err != nil {
 				return cur, err
 			}
-			cur = cur.crlf()
+			if len(node.List) > 1 {
+				cur = cur.crlf()
+			}
 		}
 		cur = cur.out(step)
 		node.Rbrack = cur.pos()

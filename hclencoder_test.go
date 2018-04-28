@@ -91,6 +91,27 @@ func TestEncoder(t *testing.T) {
 			Output: "keyed-nested-structs",
 		},
 		{
+			ID: "multiple keys nested structs",
+			Input: struct {
+				Foo struct {
+					Key      string `hcl:",key"`
+					OtherKey string `hcl:",key"`
+					Fizz     string
+				}
+			}{
+				struct {
+					Key      string `hcl:",key"`
+					OtherKey string `hcl:",key"`
+					Fizz     string
+				}{
+					"bar",
+					"baz",
+					"buzz",
+				},
+			},
+			Output: "multiple-keys-nested-structs",
+		},
+		{
 			ID: "nested struct slice",
 			Input: struct {
 				Widget []struct {

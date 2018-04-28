@@ -24,10 +24,17 @@ func Example() {
 		Sound string `hcl:"says" hcle:"omitempty"`
 	}
 
+	type Pet struct {
+		Species string `hcl:",key"`
+		Name    string `hcl:",key"`
+		Sound   string `hcl:"says" hcle:"omitempty"`
+	}
+
 	type Config struct {
 		Farm      `hcl:",squash"`
 		Farmer    Farmer            `hcl:"farmer"`
 		Animals   []Animal          `hcl:"animal"`
+		Pets      []Pet             `hcl:"pet"`
 		Buildings map[string]string `hcl:"buildings"`
 	}
 
@@ -53,6 +60,13 @@ func Example() {
 			},
 			{
 				Name: "rock",
+			},
+		},
+		Pets: []Pet{
+			{
+				Species: "cat",
+				Name:    "whiskers",
+				Sound:   "meow",
 			},
 		},
 		Buildings: map[string]string{
@@ -92,6 +106,10 @@ func Example() {
 	// }
 	//
 	// animal "rock" {}
+	//
+	// pet "cat" "whiskers" {
+	//   says = "meow"
+	// }
 	//
 	// buildings {
 	//   Barn  = "456 Digits Drive"

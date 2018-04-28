@@ -62,7 +62,7 @@ type fieldMeta struct {
 }
 
 // encode converts a reflected valued into an HCL ast.Node in a depth-first manner.
-func encode(in reflect.Value) (node ast.Node, key *ast.ObjectKey, err error) {
+func encode(in reflect.Value) (node ast.Node, key []*ast.ObjectKey, err error) {
 	in, isNil := deref(in)
 	if isNil {
 		return nil, nil, nil
@@ -92,7 +92,7 @@ func encode(in reflect.Value) (node ast.Node, key *ast.ObjectKey, err error) {
 
 // encodePrimitive converts a primitive value into an ast.LiteralType. An
 // ast.ObjectKey is never returned.
-func encodePrimitive(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
+func encodePrimitive(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 	tkn, err := tokenize(in, false)
 	if err != nil {
 		return nil, nil, err
@@ -103,7 +103,7 @@ func encodePrimitive(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 
 // encodeList converts a slice to an appropriate ast.Node type depending on its
 // element value type. An ast.ObjectKey is never returned.
-func encodeList(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
+func encodeList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 	childType := in.Type().Elem()
 
 childLoop:
@@ -126,7 +126,7 @@ childLoop:
 
 // encodePrimitiveList converts a slice of primitive values to an ast.ListType. An
 // ast.ObjectKey is never returned.
-func encodePrimitiveList(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
+func encodePrimitiveList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 	l := in.Len()
 	n := &ast.ListType{List: make([]ast.Node, 0, l)}
 
@@ -145,7 +145,7 @@ func encodePrimitiveList(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 
 // encodeBlockList converts a slice of non-primitive types to an ast.ObjectList. An
 // ast.ObjectKey is never returned.
-func encodeBlockList(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
+func encodeBlockList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 	l := in.Len()
 	n := &ast.ObjectList{Items: make([]*ast.ObjectItem, 0, l)}
 
@@ -162,7 +162,7 @@ func encodeBlockList(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 		}
 
 		item := &ast.ObjectItem{Val: child}
-		item.Keys = []*ast.ObjectKey{childKey}
+		item.Keys = childKey
 		n.Add(item)
 	}
 
@@ -171,7 +171,7 @@ func encodeBlockList(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 
 // encodeMap converts a map type into an ast.ObjectType. Maps must have string
 // key values to be encoded. An ast.ObjectKey is never returned.
-func encodeMap(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
+func encodeMap(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 	if keyType := in.Type().Key().Kind(); keyType != reflect.String {
 		return nil, nil, fmt.Errorf("map keys must be strings, %s given", keyType)
 	}
@@ -207,7 +207,7 @@ func encodeMap(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 				Val:  val,
 			}
 			if childKey != nil {
-				item.Keys = append(item.Keys, childKey)
+				item.Keys = append(item.Keys, childKey...)
 			}
 			l = append(l, item)
 
@@ -222,10 +222,10 @@ func encodeMap(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 // encodeStruct converts a struct type into an ast.ObjectType. An ast.ObjectKey
 // may be returned if a KeyTag is present that should be used by a parent
 // ast.ObjectItem if this node is nested.
-func encodeStruct(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
+func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 	l := in.NumField()
 	list := &ast.ObjectList{Items: make([]*ast.ObjectItem, 0, l)}
-	var key *ast.ObjectKey
+	keys := make([]*ast.ObjectKey, 0)
 
 	for i := 0; i < l; i++ {
 		field := in.Type().Field(i)
@@ -259,7 +259,7 @@ func encodeStruct(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 		// this field is a key and should be bubbled up to the parent node
 		if meta.key {
 			if lit, ok := val.(*ast.LiteralType); ok && lit.Token.Type == token.STRING {
-				key = &ast.ObjectKey{Token: lit.Token}
+				keys = append(keys, &ast.ObjectKey{Token: lit.Token})
 				continue
 			}
 			return nil, nil, errors.New("struct key fields must be string literals")
@@ -293,12 +293,14 @@ func encodeStruct(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 			Val:  val,
 		}
 		if childKey != nil {
-			item.Keys = append(item.Keys, childKey)
+			item.Keys = append(item.Keys, childKey...)
 		}
 		list.Add(item)
 	}
-
-	return &ast.ObjectType{List: list}, key, nil
+	if len(keys) == 0 {
+		return &ast.ObjectType{List: list}, nil, nil
+	}
+	return &ast.ObjectType{List: list}, keys, nil
 }
 
 // tokenize converts a primitive type into an token.Token. IDENT tokens (unquoted strings)

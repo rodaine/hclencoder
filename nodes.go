@@ -70,7 +70,9 @@ func encode(in reflect.Value) (node ast.Node, key *ast.ObjectKey, err error) {
 
 	switch in.Kind() {
 
-	case reflect.Bool, reflect.Int, reflect.Float64, reflect.String:
+	case reflect.Bool, reflect.Float64, reflect.String,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return encodePrimitive(in)
 
 	case reflect.Slice:
@@ -290,10 +292,16 @@ func tokenize(in reflect.Value, ident bool) (t token.Token, err error) {
 			Text: strconv.FormatBool(in.Bool()),
 		}, nil
 
-	case reflect.Int:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return token.Token{
 			Type: token.NUMBER,
-			Text: strconv.Itoa(int(in.Int())),
+			Text: fmt.Sprintf("%d", in.Uint()),
+		}, nil
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return token.Token{
+			Type: token.NUMBER,
+			Text: fmt.Sprintf("%d", in.Int()),
 		}, nil
 
 	case reflect.Float64:

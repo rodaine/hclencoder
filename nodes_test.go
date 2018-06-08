@@ -114,9 +114,9 @@ func TestEncodePrimitive(t *testing.T) {
 			Expected: &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"foobar"`}},
 		},
 		{
-			ID:    "err",
-			Input: reflect.ValueOf(uint8(1)),
-			Error: true,
+			ID:       "uint",
+			Input:    reflect.ValueOf(uint(1)),
+			Expected: &ast.LiteralType{Token: token.Token{Type: token.NUMBER, Text: "1"}},
 		},
 	}
 
@@ -156,9 +156,12 @@ func TestEncodeList(t *testing.T) {
 			}},
 		},
 		{
-			ID:    "primitive - invalid",
+			ID:    "primitive - uint",
 			Input: reflect.ValueOf([]uint{123}),
-			Error: true,
+			Expected: &ast.ListType{List: []ast.Node{
+				&ast.LiteralType{Token: token.Token{Type: token.NUMBER, Text: "123"}},
+			}},
+			//Error: true,
 		},
 		{
 			ID:    "block",
@@ -425,13 +428,6 @@ func TestTokenize(t *testing.T) {
 			true,
 			token.Token{Type: token.IDENT, Text: "fizzbuzz"},
 			false,
-		},
-		{
-			"unsupported",
-			reflect.ValueOf(uint8(1)),
-			false,
-			token.Token{},
-			true,
 		},
 	}
 

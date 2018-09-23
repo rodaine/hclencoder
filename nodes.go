@@ -187,6 +187,20 @@ func encodeMap(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 			continue
 		}
 
+		// If the item is an object list, we need to flatten out the items.
+		// Child keys are assumed to be added to the above call to encode
+		if val, ok := val.(*ast.ObjectList); ok {
+			itemKey := &ast.ObjectKey{Token: tkn}
+			for _, obj := range val.Items {
+				keys := append([]*ast.ObjectKey{itemKey}, obj.Keys...)
+				l = append(l, &ast.ObjectItem{
+					Keys: keys,
+					Val:  obj.Val,
+				})
+			}
+			continue
+		}
+
 		item := &ast.ObjectItem{
 			Keys: []*ast.ObjectKey{{Token: tkn}},
 			Val:  val,

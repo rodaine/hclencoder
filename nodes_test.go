@@ -278,6 +278,58 @@ func TestEncodeMap(t *testing.T) {
 				},
 			}}},
 		},
+		{
+			ID: "keyed list",
+			Input: reflect.ValueOf(map[string][]map[string]interface{}{
+				"obj1": []map[string]interface{}{
+					map[string]interface{}{"foo": "bar"},
+					map[string]interface{}{"boo": "hoo"},
+				},
+				"obj2": []map[string]interface{}{
+					map[string]interface{}{"foo": "bar"},
+					map[string]interface{}{"boo": "hoo"},
+				},
+			}),
+			Expected: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+				&ast.ObjectItem{
+					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "obj1"}}},
+					Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+						&ast.ObjectItem{
+							Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "boo"}}},
+							Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"hoo"`}},
+						},
+					}}},
+				},
+				&ast.ObjectItem{
+					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "obj1"}}},
+					Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+						&ast.ObjectItem{
+							Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "foo"}}},
+							Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"bar"`}},
+						},
+					}}},
+				},
+				&ast.ObjectItem{
+					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "obj2"}}},
+					Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+						&ast.ObjectItem{
+							Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "boo"}}},
+							Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"hoo"`}},
+						},
+					}}},
+				},
+				&ast.ObjectItem{
+					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "obj2"}}},
+					Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+						&ast.ObjectItem{
+							Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "foo"}}},
+							Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"bar"`}},
+						},
+					}}},
+				},
+			}},
+			},
+		},
 	}
 
 	RunAll(tests, encodeMap, t)

@@ -187,29 +187,33 @@ func encodeMap(in reflect.Value) (ast.Node, *ast.ObjectKey, error) {
 			continue
 		}
 
-		// If the item is an object list, we need to flatten out the items.
-		// Child keys are assumed to be added to the above call to encode
-		if val, ok := val.(*ast.ObjectList); ok {
+		switch typ := val.(type) {
+		case *ast.ObjectList:
+			// If the item is an object list, we need to flatten out the items.
+			// Child keys are assumed to be added to the above call to encode
 			itemKey := &ast.ObjectKey{Token: tkn}
-			for _, obj := range val.Items {
+			for _, obj := range typ.Items {
 				keys := append([]*ast.ObjectKey{itemKey}, obj.Keys...)
 				l = append(l, &ast.ObjectItem{
 					Keys: keys,
 					Val:  obj.Val,
 				})
 			}
-			continue
+
+		default:
+			item := &ast.ObjectItem{
+				Keys: []*ast.ObjectKey{{Token: tkn}},
+				Val:  val,
+			}
+			if childKey != nil {
+				item.Keys = append(item.Keys, childKey)
+			}
+			l = append(l, item)
+
 		}
 
-		item := &ast.ObjectItem{
-			Keys: []*ast.ObjectKey{{Token: tkn}},
-			Val:  val,
-		}
-		if childKey != nil {
-			item.Keys = append(item.Keys, childKey)
-		}
-		l = append(l, item)
 	}
+
 	sort.Sort(l)
 	return &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem(l)}}, nil, nil
 }

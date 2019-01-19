@@ -1,7 +1,8 @@
-Widget {
-  Foo = "bar"
-}
-
-Widget {
-  Foo = "baz"
-}
+Widget = [
+  {
+    Foo = "bar"
+  },
+  {
+    Foo = "baz"
+  },
+]

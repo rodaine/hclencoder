@@ -122,6 +122,26 @@ func TestEncoder(t *testing.T) {
 			},
 			Output: "nested-struct-slice-no-key",
 		},
+		{
+			ID: "nested slices",
+			Input: map[string]interface{}{
+				"foo": []interface{}{
+					"bar", "baz",
+				},
+				"bar": []interface{}{
+					[]interface{}{
+						"bar",
+					},
+					[]interface{}{
+						"baz",
+					},
+					[]interface{}{
+						"buzz",
+					},
+				},
+			},
+			Output: "nested-slices",
+		},
 	}
 
 	for _, test := range tests {

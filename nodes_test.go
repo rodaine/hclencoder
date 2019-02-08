@@ -166,17 +166,19 @@ func TestEncodeList(t *testing.T) {
 		{
 			ID:    "block",
 			Input: reflect.ValueOf([]TestStruct{{}, {Bar: "fizzbuzz"}}),
-			Expected: &ast.ObjectList{Items: []*ast.ObjectItem{
-				&ast.ObjectItem{Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-					&ast.ObjectItem{
+			Expected: &ast.ListType{List: []ast.Node{
+				&ast.ObjectType{List: &ast.ObjectList{
+					Items: []*ast.ObjectItem{{
 						Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Bar"}}},
-						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `""`}}},
-				}}}},
-				&ast.ObjectItem{Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-					&ast.ObjectItem{
+						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `""`}},
+					}},
+				}},
+				&ast.ObjectType{List: &ast.ObjectList{
+					Items: []*ast.ObjectItem{{
 						Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Bar"}}},
-						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"fizzbuzz"`}}},
-				}}}},
+						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"fizzbuzz"`}},
+					}},
+				}},
 			}},
 		},
 		{
@@ -187,33 +189,37 @@ func TestEncodeList(t *testing.T) {
 		{
 			ID:    "block - nil item",
 			Input: reflect.ValueOf([]*TestStruct{&TestStruct{}, nil, &TestStruct{Bar: "fizzbuzz"}}),
-			Expected: &ast.ObjectList{Items: []*ast.ObjectItem{
-				&ast.ObjectItem{Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-					&ast.ObjectItem{
+			Expected: &ast.ListType{List: []ast.Node{
+				&ast.ObjectType{List: &ast.ObjectList{
+					Items: []*ast.ObjectItem{{
 						Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Bar"}}},
-						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `""`}}},
-				}}}},
-				&ast.ObjectItem{Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-					&ast.ObjectItem{
+						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `""`}},
+					}},
+				}},
+				&ast.ObjectType{List: &ast.ObjectList{
+					Items: []*ast.ObjectItem{{
 						Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Bar"}}},
-						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"fizzbuzz"`}}},
-				}}}},
+						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"fizzbuzz"`}},
+					}},
+				}},
 			}},
 		},
 		{
 			ID:    "block - interface",
 			Input: reflect.ValueOf([]TestInterface{TestStruct{}, TestStruct{Bar: "fizzbuzz"}}),
-			Expected: &ast.ObjectList{Items: []*ast.ObjectItem{
-				&ast.ObjectItem{Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-					&ast.ObjectItem{
+			Expected: &ast.ListType{List: []ast.Node{
+				&ast.ObjectType{List: &ast.ObjectList{
+					Items: []*ast.ObjectItem{{
 						Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Bar"}}},
-						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `""`}}},
-				}}}},
-				&ast.ObjectItem{Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-					&ast.ObjectItem{
+						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `""`}},
+					}},
+				}},
+				&ast.ObjectType{List: &ast.ObjectList{
+					Items: []*ast.ObjectItem{{
 						Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Bar"}}},
-						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"fizzbuzz"`}}},
-				}}}},
+						Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"fizzbuzz"`}},
+					}},
+				}},
 			}},
 		},
 		{
@@ -281,54 +287,51 @@ func TestEncodeMap(t *testing.T) {
 		{
 			ID: "keyed list",
 			Input: reflect.ValueOf(map[string][]map[string]interface{}{
-				"obj1": []map[string]interface{}{
-					map[string]interface{}{"foo": "bar"},
-					map[string]interface{}{"boo": "hoo"},
+				"obj1": {
+					{"foo": "bar"},
+					{"boo": "hoo"},
 				},
-				"obj2": []map[string]interface{}{
-					map[string]interface{}{"foo": "bar"},
-					map[string]interface{}{"boo": "hoo"},
+				"obj2": {
+					{"foo": "bar"},
+					{"boo": "hoo"},
 				},
 			}),
 			Expected: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
 				&ast.ObjectItem{
 					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "obj1"}}},
-					Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-						&ast.ObjectItem{
-							Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "boo"}}},
-							Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"hoo"`}},
-						},
-					}}},
-				},
-				&ast.ObjectItem{
-					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "obj1"}}},
-					Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-						&ast.ObjectItem{
-							Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "foo"}}},
-							Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"bar"`}},
-						},
-					}}},
-				},
-				&ast.ObjectItem{
-					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "obj2"}}},
-					Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-						&ast.ObjectItem{
-							Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "boo"}}},
-							Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"hoo"`}},
-						},
-					}}},
+					Val: &ast.ListType{List: []ast.Node{
+						&ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+							{
+								Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "foo"}}},
+								Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"bar"`}},
+							},
+						}}},
+						&ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+							{
+								Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "boo"}}},
+								Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"hoo"`}},
+							},
+						}}},
+					}},
 				},
 				&ast.ObjectItem{
 					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "obj2"}}},
-					Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-						&ast.ObjectItem{
-							Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "foo"}}},
-							Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"bar"`}},
-						},
-					}}},
+					Val: &ast.ListType{List: []ast.Node{
+						&ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+							{
+								Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "foo"}}},
+								Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"bar"`}},
+							},
+						}}},
+						&ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+							{
+								Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "boo"}}},
+								Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"hoo"`}},
+							},
+						}}},
+					}},
 				},
-			}},
-			},
+			}}},
 		},
 	}
 
@@ -408,12 +411,14 @@ func TestEncodeStruct(t *testing.T) {
 			Expected: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
 				&ast.ObjectItem{
 					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Foo"}}},
-					Val: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
-						&ast.ObjectItem{
-							Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Bar"}}},
-							Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"Test"`}},
-						},
-					}}},
+					Val: &ast.ListType{List: []ast.Node{&ast.ObjectType{
+						List: &ast.ObjectList{
+							Items: []*ast.ObjectItem{{
+								Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Bar"}}},
+								Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"Test"`}},
+							}},
+						}}},
+					},
 				},
 			}}},
 		},

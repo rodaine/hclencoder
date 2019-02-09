@@ -10,17 +10,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type encodeFunc func(reflect.Value) (ast.Node, *ast.ObjectKey, error)
+type encodeFunc func(reflect.Value) (ast.Node, []*ast.ObjectKey, error)
 
 type encodeTest struct {
 	ID       string
 	Input    reflect.Value
 	Expected ast.Node
-	Key      *ast.ObjectKey
+	Key      []*ast.ObjectKey
 	Error    bool
 }
 
-func (test encodeTest) Test(f encodeFunc, t *testing.T) (node ast.Node, key *ast.ObjectKey, err error) {
+func (test encodeTest) Test(f encodeFunc, t *testing.T) (node ast.Node, key []*ast.ObjectKey, err error) {
 	node, key, err = f(test.Input)
 
 	if test.Error {

@@ -279,9 +279,9 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 		// if the item is an object list, we need to flatten out the items
 		if val, ok := val.(*ast.ObjectList); ok {
 			for _, obj := range val.Items {
-				keys := append([]*ast.ObjectKey{itemKey}, obj.Keys...)
+				objectKeys := append([]*ast.ObjectKey{itemKey}, obj.Keys...)
 				list.Add(&ast.ObjectItem{
-					Keys: keys,
+					Keys: objectKeys,
 					Val:  obj.Val,
 				})
 			}

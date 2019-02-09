@@ -1,6 +1,6 @@
 sudo:     false
 language: go
-go:       1.6
+go:       1.11
 
 install: go get -t ./...
 script:  ./script/test

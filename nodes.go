@@ -277,8 +277,8 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 		itemKey := &ast.ObjectKey{Token: tkn}
 
 		// if the item is an object list, we need to flatten out the items
-		if val, ok := val.(*ast.ObjectList); ok {
-			for _, obj := range val.Items {
+		if objectList, ok := val.(*ast.ObjectList); ok {
+			for _, obj := range objectList.Items {
 				objectKeys := append([]*ast.ObjectKey{itemKey}, obj.Keys...)
 				list.Add(&ast.ObjectItem{
 					Keys: objectKeys,

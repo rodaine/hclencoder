@@ -248,7 +248,7 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 			}
 		}
 
-		val, childKey, err := encode(rawVal)
+		val, childKeys, err := encode(rawVal)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -270,6 +270,9 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 			switch val := val.(type) {
 			case *ast.ObjectType:
 				list.Items = append(list.Items, val.List.Items...)
+				if childKeys != nil {
+					keys = childKeys
+				}
 				continue
 			}
 		}
@@ -292,8 +295,8 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 			Keys: []*ast.ObjectKey{itemKey},
 			Val:  val,
 		}
-		if childKey != nil {
-			item.Keys = append(item.Keys, childKey...)
+		if childKeys != nil {
+			item.Keys = append(item.Keys, childKeys...)
 		}
 		list.Add(item)
 	}

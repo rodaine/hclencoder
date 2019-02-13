@@ -406,6 +406,16 @@ func TestEncodeStruct(t *testing.T) {
 			}}},
 		},
 		{
+			ID:    "squash keyed child struct",
+			Input: reflect.ValueOf(SquashKeyChildStruct{KeyChildStruct: KeyChildStruct{Foo: KeyStruct{Bar: "baz"}}}),
+			Expected: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+				&ast.ObjectItem{
+					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Foo"}}, {Token: token.Token{Type: token.STRING, Text: `"baz"`}}},
+					Val:  &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{}}},
+				},
+			}}},
+		},
+		{
 			ID:    "nested unkeyed struct slice",
 			Input: reflect.ValueOf(struct{ Foo []TestStruct }{[]TestStruct{{"Test"}}}),
 			Expected: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
@@ -699,6 +709,10 @@ type NillableStruct struct {
 
 type SquashStruct struct {
 	TestStruct `hcl:",squash"`
+}
+
+type SquashKeyChildStruct struct {
+	KeyChildStruct `hcl:",squash"`
 }
 
 func strAddr(s string) *string {

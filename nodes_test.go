@@ -496,6 +496,13 @@ func TestTokenize(t *testing.T) {
 			token.Token{Type: token.IDENT, Text: "fizzbuzz"},
 			false,
 		},
+		{
+			"string - multiline",
+			reflect.ValueOf("asdf\njkl;"),
+			false,
+			token.Token{Type: token.IDENT, Text: "<<EOF\nasdf\njkl;\nEOF"},
+			false,
+		},
 	}
 
 	for _, test := range tests {

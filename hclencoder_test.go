@@ -29,11 +29,13 @@ func TestEncoder(t *testing.T) {
 				Int    int
 				Bool   bool
 				Float  float64
+				Node   string `hcle:"node"`
 			}{
 				"bar",
 				123,
 				true,
 				4.56,
+				"baz",
 			},
 			Output: "basic",
 		},
@@ -66,9 +68,17 @@ func TestEncoder(t *testing.T) {
 			Input: struct {
 				Foo  struct{ Bar string }
 				Fizz struct{ Buzz float64 }
+				Bar  struct {
+					Bar  string `hcle:"node"`
+					Fizz string
+				}
 			}{
 				struct{ Bar string }{Bar: "baz"},
 				struct{ Buzz float64 }{Buzz: 1.23},
+				struct {
+					Bar  string `hcle:"node"`
+					Fizz string
+				}{Bar: "baz", Fizz: "bar"},
 			},
 			Output: "nested-structs",
 		},
@@ -131,14 +141,17 @@ func TestEncoder(t *testing.T) {
 			ID: "nested struct slice no key",
 			Input: struct {
 				Widget []struct {
-					Foo string
+					Foo string `hcle:"omitempty"`
+					Bar string `hcle:"omitempty,node"`
 				}
 			}{
 				Widget: []struct {
-					Foo string
+					Foo string `hcle:"omitempty"`
+					Bar string `hcle:"omitempty,node"`
 				}{
-					{"bar"},
-					{"baz"},
+					{"bar", ""},
+					{"", "fizz"},
+					{"baz", ""},
 				},
 			},
 			Output: "nested-struct-slice-no-key",

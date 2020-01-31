@@ -16,8 +16,9 @@ type Farmer struct {
 }
 
 type Animal struct {
-  Name  string `hcl:",key"`
-  Sound string `hcl:"says" hcle:"omitempty"`
+  Name     string `hcl:",key"`
+  Sound    string `hcl:"says" hcle:"omitempty"`
+  Category string `hcle:"node"`
 }
 
 type Config struct {
@@ -42,13 +43,16 @@ input := Config{
     {
       Name:  "cow",
       Sound: "moo",
+      Category: "data.animal_categories.cow"
     },
     {
       Name:  "pig",
       Sound: "oink",
+      Category: "data.animal_categories.pig"
     },
     {
       Name: "rock",
+      Category: "data.animal_categories.rock"
     },
   },
   Buildings: map[string]string{
@@ -81,13 +85,17 @@ fmt.Print(string(hcl))
 //
 // animal "cow" {
 //   says = "moo"
+//   category = data.animal_categories.cow
 // }
 //
 // animal "pig" {
 //   says = "oink"
+//   category = data.animal_categories.pig
 // }
 //
-// animal "rock" {}
+// animal "rock" {
+//   category = data.animal_categories.rock
+// }
 //
 // buildings {
 //   Barn  = "456 Digits Drive"
@@ -125,6 +133,8 @@ fmt.Print(string(hcl))
 - **`hcle:"omit"`** - omits this field from encoding into HCL. This is similar behavior to [`json:"-"`][json].
 
 - **`hcle:"omitempty"`** - omits this field if it is a zero value for its type. This is similar behavior to [`json:",omitempty"`][json].
+
+- **`hcle:"node"`** - node will omit quotes from the output, useful for references.
 
 [HCL]:         https://github.com/hashicorp/hcl
 [hclprinter]:  https://godoc.org/github.com/hashicorp/hcl/hcl/printer

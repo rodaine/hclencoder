@@ -5,3 +5,8 @@ Foo {
 Fizz {
   Buzz = 1.23
 }
+
+Bar {
+  Bar  = baz
+  Fizz = "bar"
+}

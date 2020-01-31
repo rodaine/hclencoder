@@ -48,6 +48,9 @@ const (
 	// OmitEmptyTag will omit this field if it is a zero value. This
 	// is similar behavior to `json:",omitempty"`
 	OmitEmptyTag string = "omitempty"
+
+	// Node will omit quotes from the output, useful for references.
+	Node string = "node"
 )
 
 type fieldMeta struct {
@@ -59,10 +62,11 @@ type fieldMeta struct {
 	decodedFields bool
 	omit          bool
 	omitEmpty     bool
+	node          bool
 }
 
 // encode converts a reflected valued into an HCL ast.Node in a depth-first manner.
-func encode(in reflect.Value) (node ast.Node, key []*ast.ObjectKey, err error) {
+func encode(in reflect.Value, isNode bool) (node ast.Node, key []*ast.ObjectKey, err error) {
 	in, isNil := deref(in)
 	if isNil {
 		return nil, nil, nil
@@ -73,16 +77,16 @@ func encode(in reflect.Value) (node ast.Node, key []*ast.ObjectKey, err error) {
 	case reflect.Bool, reflect.Float64, reflect.String,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return encodePrimitive(in)
+		return encodePrimitive(in, isNode)
 
 	case reflect.Slice:
-		return encodeList(in)
+		return encodeList(in, isNode)
 
 	case reflect.Map:
-		return encodeMap(in)
+		return encodeMap(in, isNode)
 
 	case reflect.Struct:
-		return encodeStruct(in)
+		return encodeStruct(in, isNode)
 
 	default:
 		return nil, nil, fmt.Errorf("cannot encode kind %s to HCL", in.Kind())
@@ -92,8 +96,8 @@ func encode(in reflect.Value) (node ast.Node, key []*ast.ObjectKey, err error) {
 
 // encodePrimitive converts a primitive value into an ast.LiteralType. An
 // ast.ObjectKey is never returned.
-func encodePrimitive(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
-	tkn, err := tokenize(in, false)
+func encodePrimitive(in reflect.Value, isNode bool) (ast.Node, []*ast.ObjectKey, error) {
+	tkn, err := tokenize(in, isNode)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -103,7 +107,7 @@ func encodePrimitive(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 
 // encodeList converts a slice to an appropriate ast.Node type depending on its
 // element value type. An ast.ObjectKey is never returned.
-func encodeList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+func encodeList(in reflect.Value, isNode bool) (ast.Node, []*ast.ObjectKey, error) {
 	childType := in.Type().Elem()
 
 childLoop:
@@ -118,20 +122,20 @@ childLoop:
 
 	switch childType.Kind() {
 	case reflect.Map, reflect.Struct, reflect.Interface:
-		return encodeBlockList(in)
+		return encodeBlockList(in, isNode)
 	default:
-		return encodePrimitiveList(in)
+		return encodePrimitiveList(in, isNode)
 	}
 }
 
 // encodePrimitiveList converts a slice of primitive values to an ast.ListType. An
 // ast.ObjectKey is never returned.
-func encodePrimitiveList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+func encodePrimitiveList(in reflect.Value, isNode bool) (ast.Node, []*ast.ObjectKey, error) {
 	l := in.Len()
 	n := &ast.ListType{List: make([]ast.Node, 0, l)}
 
 	for i := 0; i < l; i++ {
-		child, _, err := encode(in.Index(i))
+		child, _, err := encode(in.Index(i), isNode)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -145,12 +149,12 @@ func encodePrimitiveList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 
 // encodeBlockList converts a slice of non-primitive types to an ast.ObjectList. An
 // ast.ObjectKey is never returned.
-func encodeBlockList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+func encodeBlockList(in reflect.Value, isNode bool) (ast.Node, []*ast.ObjectKey, error) {
 	l := in.Len()
 	n := &ast.ObjectList{Items: make([]*ast.ObjectItem, 0, l)}
 
 	for i := 0; i < l; i++ {
-		child, childKey, err := encode(in.Index(i))
+		child, childKey, err := encode(in.Index(i), isNode)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -158,7 +162,7 @@ func encodeBlockList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 			continue
 		}
 		if childKey == nil {
-			return encodePrimitiveList(in)
+			return encodePrimitiveList(in, isNode)
 		}
 
 		item := &ast.ObjectItem{Val: child}
@@ -171,7 +175,7 @@ func encodeBlockList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 
 // encodeMap converts a map type into an ast.ObjectType. Maps must have string
 // key values to be encoded. An ast.ObjectKey is never returned.
-func encodeMap(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+func encodeMap(in reflect.Value, isNode bool) (ast.Node, []*ast.ObjectKey, error) {
 	if keyType := in.Type().Key().Kind(); keyType != reflect.String {
 		return nil, nil, fmt.Errorf("map keys must be strings, %s given", keyType)
 	}
@@ -180,7 +184,7 @@ func encodeMap(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 	for _, key := range in.MapKeys() {
 		tkn, _ := tokenize(key, true) // error impossible since we've already checked key kind
 
-		val, childKey, err := encode(in.MapIndex(key))
+		val, childKey, err := encode(in.MapIndex(key), isNode)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -222,7 +226,7 @@ func encodeMap(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 // encodeStruct converts a struct type into an ast.ObjectType. An ast.ObjectKey
 // may be returned if a KeyTag is present that should be used by a parent
 // ast.ObjectItem if this node is nested.
-func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+func encodeStruct(in reflect.Value, isNode bool) (ast.Node, []*ast.ObjectKey, error) {
 	l := in.NumField()
 	list := &ast.ObjectList{Items: make([]*ast.ObjectItem, 0, l)}
 	keys := make([]*ast.ObjectKey, 0)
@@ -248,7 +252,7 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 			}
 		}
 
-		val, childKeys, err := encode(rawVal)
+		val, childKeys, err := encode(rawVal, meta.node)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -386,6 +390,8 @@ func extractFieldMeta(f reflect.StructField) (meta fieldMeta) {
 			meta.omit = true
 		case OmitEmptyTag:
 			meta.omitEmpty = true
+		case Node:
+			meta.node = true
 		}
 	}
 

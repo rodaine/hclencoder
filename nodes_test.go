@@ -10,18 +10,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type encodeFunc func(reflect.Value) (ast.Node, []*ast.ObjectKey, error)
+type encodeFunc func(reflect.Value, bool) (ast.Node, []*ast.ObjectKey, error)
 
 type encodeTest struct {
 	ID       string
 	Input    reflect.Value
+	Node     bool
 	Expected ast.Node
 	Key      []*ast.ObjectKey
 	Error    bool
 }
 
 func (test encodeTest) Test(f encodeFunc, t *testing.T) (node ast.Node, key []*ast.ObjectKey, err error) {
-	node, key, err = f(test.Input)
+	node, key, err = f(test.Input, test.Node)
 
 	if test.Error {
 		assert.Error(t, err, test.ID)
@@ -112,6 +113,12 @@ func TestEncodePrimitive(t *testing.T) {
 			ID:       "string - never ident",
 			Input:    reflect.ValueOf("foobar"),
 			Expected: &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"foobar"`}},
+		},
+		{
+			ID:       "string - always ident",
+			Input:    reflect.ValueOf("foobar"),
+			Node:     true,
+			Expected: &ast.LiteralType{Token: token.Token{Type: token.IDENT, Text: `foobar`}},
 		},
 		{
 			ID:       "uint",
@@ -350,6 +357,7 @@ func TestEncodeStruct(t *testing.T) {
 				},
 			}}},
 		},
+
 		{
 			ID:       "debug fields",
 			Input:    reflect.ValueOf(DebugStruct{Decoded: []string{}, Unused: []string{}}),
@@ -545,6 +553,10 @@ func TestExtractFieldMeta(t *testing.T) {
 		{
 			`hcle:"omitempty"`,
 			fieldMeta{name: fieldName, omitEmpty: true},
+		},
+		{
+			`hcle:"node"`,
+			fieldMeta{name: fieldName, node: true},
 		},
 	}
 

@@ -10,7 +10,7 @@ import (
 
 // Encode converts any supported type into the corresponding HCL format
 func Encode(in interface{}) ([]byte, error) {
-	node, _, err := encode(reflect.ValueOf(in))
+	node, _, err := encode(reflect.ValueOf(in), false)
 	if err != nil {
 		return nil, err
 	}

@@ -5,3 +5,5 @@ Int = 123
 Bool = true
 
 Float = 4.56
+
+Node = baz

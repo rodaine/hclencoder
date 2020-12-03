@@ -20,6 +20,8 @@ const (
 	// KeyTag indicates that the value of the field should be part of
 	// the parent object block's key, not a property of that block
 	KeyTag string = "key"
+	// LabelTag is an alias for KeyTag, hcl v2 has renamed key to label.
+	LabelTag string = "label"
 
 	// SquashTag is attached to anonymous fields of a struct and indicates
 	// to the encoder to lift the fields of that value into the parent
@@ -220,7 +222,7 @@ func encodeMap(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 }
 
 // encodeStruct converts a struct type into an ast.ObjectType. An ast.ObjectKey
-// may be returned if a KeyTag is present that should be used by a parent
+// may be returned if a KeyTag/LabelTag is present that should be used by a parent
 // ast.ObjectItem if this node is nested.
 func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 	l := in.NumField()
@@ -367,7 +369,7 @@ func extractFieldMeta(f reflect.StructField) (meta fieldMeta) {
 
 		for _, tag := range tags[1:] {
 			switch tag {
-			case KeyTag:
+			case KeyTag, LabelTag:
 				meta.key = true
 			case SquashTag:
 				meta.squash = true

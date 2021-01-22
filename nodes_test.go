@@ -376,6 +376,21 @@ func TestEncodeStruct(t *testing.T) {
 			}}},
 		},
 		{
+			ID:       "optional field - empty",
+			Input:    reflect.ValueOf(OptionalStruct{}),
+			Expected: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{}}},
+		},
+		{
+			ID:    "optional field - not empty",
+			Input: reflect.ValueOf(OptionalStruct{"foo"}),
+			Expected: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
+				&ast.ObjectItem{
+					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "Bar"}}},
+					Val:  &ast.LiteralType{Token: token.Token{Type: token.STRING, Text: `"foo"`}},
+				},
+			}}},
+		},
+		{
 			ID:       "nil field",
 			Input:    reflect.ValueOf(NillableStruct{}),
 			Expected: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{}}},
@@ -693,6 +708,10 @@ type OmitStruct struct {
 
 type OmitEmptyStruct struct {
 	Bar string `hcle:"omitempty"`
+}
+
+type OptionalStruct struct {
+	Bar string `hcl:",optional"`
 }
 
 type InvalidStruct struct {

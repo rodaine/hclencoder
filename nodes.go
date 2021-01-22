@@ -3,10 +3,12 @@ package hclencoder
 import (
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/hcl/hcl/token"
@@ -26,6 +28,11 @@ const (
 	// block's scope transparently. Otherwise, the field's type is used as
 	// the key for the value.
 	SquashTag string = "squash"
+
+	// Optional tag is attached to fields of a struct that are not optional
+	// when being read by the HCL Parser. If the field is empty, these fields
+	// can be omitted from the resulting HCL output
+	OptionalTag string = "optional"
 
 	// UnusedKeysTag is a flag that indicates any unused keys found by the
 	// decoder are stored in this field of type []string. This has the same
@@ -241,9 +248,17 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 
 		// if the OmitEmptyTag is provided, check if the value is its zero value.
 		rawVal := in.Field(i)
+		//can only determine emptiness if the field is settable from the current context
 		if meta.omitEmpty {
+			var rawOut interface{}
 			zeroVal := reflect.Zero(rawVal.Type()).Interface()
-			if reflect.DeepEqual(rawVal.Interface(), zeroVal) {
+			if rawVal.CanInterface() {
+				rawOut = rawVal.Interface()
+			} else if rawVal.CanAddr() {
+				rvAddr := reflect.NewAt(rawVal.Type(), unsafe.Pointer(rawVal.UnsafeAddr()))
+				rawOut = rvAddr.Elem().Interface()
+			}
+			if rawOut != nil && reflect.DeepEqual(rawOut, zeroVal) {
 				continue
 			}
 		}
@@ -375,6 +390,9 @@ func extractFieldMeta(f reflect.StructField) (meta fieldMeta) {
 				meta.decodedFields = true
 			case UnusedKeysTag:
 				meta.unusedKeys = true
+			case OptionalTag:
+				log.Printf("Setting field to empty for field %s %s %s", f.PkgPath, f.Type, f.Name)
+				meta.omitEmpty = true
 			}
 		}
 	}

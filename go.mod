@@ -1,5 +1,4 @@
-module github.com/rodaine/hclencoder
-
+module github.com/multy-dev/hclencoder
 go 1.14
 
 require (

@@ -237,7 +237,9 @@ func TestEncodeList(t *testing.T) {
 		},
 	}
 
-	RunAll(tests, encodeList, t)
+	RunAll(tests, func(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+		return encodeList(in, false)
+	}, t)
 }
 
 func TestEncodeMap(t *testing.T) {

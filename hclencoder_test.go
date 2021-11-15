@@ -62,6 +62,15 @@ func TestEncoder(t *testing.T) {
 			Output: "primitive-lists",
 		},
 		{
+			ID: "repeated blocks",
+			Input: struct {
+				Widget []struct{} `hcl:",blocks"`
+			}{
+				[]struct{}{{}, {}},
+			},
+			Output: "repeated-blocks",
+		},
+		{
 			ID: "nested struct",
 			Input: struct {
 				Foo  struct{ Bar string }

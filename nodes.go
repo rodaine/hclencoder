@@ -27,6 +27,11 @@ const (
 	// the key for the value.
 	SquashTag string = "squash"
 
+	// Blocks is attached to a slice of objects and indicates that
+	// the slice should be treated as multiple separate blocks rather than
+	// a list.
+	Blocks string = "blocks"
+
 	// UnusedKeysTag is a flag that indicates any unused keys found by the
 	// decoder are stored in this field of type []string. This has the same
 	// behavior as the OmitTag and is not encoded.
@@ -55,14 +60,19 @@ type fieldMeta struct {
 	name          string
 	key           bool
 	squash        bool
+	repeatBlock   bool
 	unusedKeys    bool
 	decodedFields bool
 	omit          bool
 	omitEmpty     bool
 }
 
-// encode converts a reflected valued into an HCL ast.Node in a depth-first manner.
 func encode(in reflect.Value) (node ast.Node, key []*ast.ObjectKey, err error) {
+	return encodeField(in, fieldMeta{})
+}
+
+// encode converts a reflected valued into an HCL ast.Node in a depth-first manner.
+func encodeField(in reflect.Value, meta fieldMeta) (node ast.Node, key []*ast.ObjectKey, err error) {
 	in, isNil := deref(in)
 	if isNil {
 		return nil, nil, nil
@@ -76,7 +86,7 @@ func encode(in reflect.Value) (node ast.Node, key []*ast.ObjectKey, err error) {
 		return encodePrimitive(in)
 
 	case reflect.Slice:
-		return encodeList(in)
+		return encodeList(in, meta.repeatBlock)
 
 	case reflect.Map:
 		return encodeMap(in)
@@ -87,7 +97,6 @@ func encode(in reflect.Value) (node ast.Node, key []*ast.ObjectKey, err error) {
 	default:
 		return nil, nil, fmt.Errorf("cannot encode kind %s to HCL", in.Kind())
 	}
-
 }
 
 // encodePrimitive converts a primitive value into an ast.LiteralType. An
@@ -103,7 +112,7 @@ func encodePrimitive(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 
 // encodeList converts a slice to an appropriate ast.Node type depending on its
 // element value type. An ast.ObjectKey is never returned.
-func encodeList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+func encodeList(in reflect.Value, repeatBlock bool) (ast.Node, []*ast.ObjectKey, error) {
 	childType := in.Type().Elem()
 
 childLoop:
@@ -118,7 +127,7 @@ childLoop:
 
 	switch childType.Kind() {
 	case reflect.Map, reflect.Struct, reflect.Interface:
-		return encodeBlockList(in)
+		return encodeBlockList(in, repeatBlock)
 	default:
 		return encodePrimitiveList(in)
 	}
@@ -145,7 +154,7 @@ func encodePrimitiveList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 
 // encodeBlockList converts a slice of non-primitive types to an ast.ObjectList. An
 // ast.ObjectKey is never returned.
-func encodeBlockList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+func encodeBlockList(in reflect.Value, repeatBlock bool) (ast.Node, []*ast.ObjectKey, error) {
 	l := in.Len()
 	n := &ast.ObjectList{Items: make([]*ast.ObjectItem, 0, l)}
 
@@ -157,7 +166,7 @@ func encodeBlockList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 		if child == nil {
 			continue
 		}
-		if childKey == nil {
+		if childKey == nil && !repeatBlock {
 			return encodePrimitiveList(in)
 		}
 
@@ -248,7 +257,7 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 			}
 		}
 
-		val, childKeys, err := encode(rawVal)
+		val, childKeys, err := encodeField(rawVal, meta)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -375,6 +384,8 @@ func extractFieldMeta(f reflect.StructField) (meta fieldMeta) {
 				meta.decodedFields = true
 			case UnusedKeysTag:
 				meta.unusedKeys = true
+			case Blocks:
+				meta.repeatBlock = true
 			}
 		}
 	}

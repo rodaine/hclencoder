@@ -153,6 +153,23 @@ func TestEncoder(t *testing.T) {
 			Output: "nested-struct-slice-no-key",
 		},
 		{
+			ID: "maps",
+			Input: struct {
+				Foo struct {
+					KeyVals map[string]string
+				}
+			}{
+				struct {
+					KeyVals map[string]string
+				}{
+					KeyVals: map[string]string{
+						"baz": "buzz",
+					},
+				},
+			},
+			Output: "maps",
+		},
+		{
 			ID: "nested slices",
 			Input: map[string]interface{}{
 				"foo": []interface{}{

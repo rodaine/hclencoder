@@ -1,10 +1,12 @@
-bar = [
-  ["bar"],
-  ["baz"],
-  ["buzz"],
-]
+ {
+  bar = [
+    ["bar"],
+    ["baz"],
+    ["buzz"],
+  ]
 
-foo = [
-  "bar",
-  "baz",
-]
+  foo = [
+    "bar",
+    "baz",
+  ]
+}

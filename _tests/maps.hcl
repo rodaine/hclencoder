@@ -1,0 +1,5 @@
+Foo {
+  KeyVals =  {
+    baz = "buzz"
+  }
+}

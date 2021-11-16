@@ -225,7 +225,18 @@ func encodeMap(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 	}
 
 	sort.Sort(l)
-	return &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem(l)}}, nil, nil
+
+	// here we wrap the map into an object with an empty key, just so that the map is not treated as an HCL object and
+	// is instead viewed an opaque node that can be used in an assignment. this is what happens when we try to write
+	// HCL2 with a HCL1 framework :)
+	return &ast.ObjectItem{
+		Keys: []*ast.ObjectKey{
+			{Token: token.Token{
+				Type: token.STRING,
+				Text: "",
+			}},
+		}, Val: &ast.ObjectType{List: &ast.ObjectList{Items: l}},
+	}, nil, nil
 }
 
 // encodeStruct converts a struct type into an ast.ObjectType. An ast.ObjectKey

@@ -38,6 +38,15 @@ func TestEncoder(t *testing.T) {
 			Output: "basic",
 		},
 		{
+			ID: "basic struct with expression",
+			Input: struct {
+				String string `hcl:",expr"`
+			}{
+				"bar",
+			},
+			Output: "basic-expr",
+		},
+		{
 			ID: "labels changed",
 			Input: struct {
 				String string `hcl:"foo"`

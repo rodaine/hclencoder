@@ -32,6 +32,9 @@ const (
 	// a list.
 	Blocks string = "blocks"
 
+	// Expression indicates that this field should not be quoted.
+	Expression string = "expr"
+
 	// UnusedKeysTag is a flag that indicates any unused keys found by the
 	// decoder are stored in this field of type []string. This has the same
 	// behavior as the OmitTag and is not encoded.
@@ -61,6 +64,7 @@ type fieldMeta struct {
 	key           bool
 	squash        bool
 	repeatBlock   bool
+	expression    bool
 	unusedKeys    bool
 	decodedFields bool
 	omit          bool
@@ -83,7 +87,7 @@ func encodeField(in reflect.Value, meta fieldMeta) (node ast.Node, key []*ast.Ob
 	case reflect.Bool, reflect.Float64, reflect.String,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return encodePrimitive(in)
+		return encodePrimitive(in, meta.expression)
 
 	case reflect.Slice:
 		return encodeList(in, meta.repeatBlock)
@@ -101,8 +105,8 @@ func encodeField(in reflect.Value, meta fieldMeta) (node ast.Node, key []*ast.Ob
 
 // encodePrimitive converts a primitive value into an ast.LiteralType. An
 // ast.ObjectKey is never returned.
-func encodePrimitive(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
-	tkn, err := tokenize(in, false)
+func encodePrimitive(in reflect.Value, expr bool) (ast.Node, []*ast.ObjectKey, error) {
+	tkn, err := tokenize(in, expr)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -328,7 +332,7 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 
 // tokenize converts a primitive type into an token.Token. IDENT tokens (unquoted strings)
 // can be optionally triggered for any string types.
-func tokenize(in reflect.Value, ident bool) (t token.Token, err error) {
+func tokenize(in reflect.Value, unquotedString bool) (t token.Token, err error) {
 	switch in.Kind() {
 	case reflect.Bool:
 		return token.Token{
@@ -355,7 +359,7 @@ func tokenize(in reflect.Value, ident bool) (t token.Token, err error) {
 		}, nil
 
 	case reflect.String:
-		if ident {
+		if unquotedString {
 			return token.Token{
 				Type: token.IDENT,
 				Text: in.String(),
@@ -397,6 +401,8 @@ func extractFieldMeta(f reflect.StructField) (meta fieldMeta) {
 				meta.unusedKeys = true
 			case Blocks:
 				meta.repeatBlock = true
+			case Expression:
+				meta.expression = true
 			}
 		}
 	}

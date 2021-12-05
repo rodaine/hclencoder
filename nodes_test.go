@@ -120,7 +120,9 @@ func TestEncodePrimitive(t *testing.T) {
 		},
 	}
 
-	RunAll(tests, encodePrimitive, t)
+	RunAll(tests, func(value reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+		return encodePrimitive(value, false)
+	}, t)
 }
 
 func TestEncodeList(t *testing.T) {

@@ -21,10 +21,9 @@ const (
 	// the parent object block's key, not a property of that block
 	KeyTag string = "key"
 
-	// SquashTag is attached to anonymous fields of a struct and indicates
+	// SquashTag is attached to fields of a struct and indicates
 	// to the encoder to lift the fields of that value into the parent
-	// block's scope transparently. Otherwise, the field's type is used as
-	// the key for the value.
+	// block's scope transparently.
 	SquashTag string = "squash"
 
 	// Blocks is attached to a slice of objects and indicates that
@@ -290,7 +289,7 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 		}
 
 		// this field is anonymous and should be squashed into the parent struct's fields
-		if meta.anonymous && meta.squash {
+		if meta.squash {
 			switch val := val.(type) {
 			case *ast.ObjectType:
 				list.Items = append(list.Items, val.List.Items...)

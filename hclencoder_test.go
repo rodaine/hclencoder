@@ -71,6 +71,15 @@ func TestEncoder(t *testing.T) {
 			Output: "primitive-lists",
 		},
 		{
+			ID: "expression slice",
+			Input: struct {
+				Expressions []string `hcl:",expr"`
+			}{
+				[]string{"foo", "bar", "baz"},
+			},
+			Output: "expr-slices",
+		},
+		{
 			ID: "repeated blocks",
 			Input: struct {
 				Widget []struct{} `hcl:",blocks"`

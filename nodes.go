@@ -89,7 +89,7 @@ func encodeField(in reflect.Value, meta fieldMeta) (node ast.Node, key []*ast.Ob
 		return encodePrimitive(in, meta.expression)
 
 	case reflect.Slice:
-		return encodeList(in, meta.repeatBlock)
+		return encodeList(in, meta)
 
 	case reflect.Map:
 		return encodeMap(in)
@@ -115,7 +115,7 @@ func encodePrimitive(in reflect.Value, expr bool) (ast.Node, []*ast.ObjectKey, e
 
 // encodeList converts a slice to an appropriate ast.Node type depending on its
 // element value type. An ast.ObjectKey is never returned.
-func encodeList(in reflect.Value, repeatBlock bool) (ast.Node, []*ast.ObjectKey, error) {
+func encodeList(in reflect.Value, meta fieldMeta) (ast.Node, []*ast.ObjectKey, error) {
 	childType := in.Type().Elem()
 
 childLoop:
@@ -130,20 +130,20 @@ childLoop:
 
 	switch childType.Kind() {
 	case reflect.Map, reflect.Struct, reflect.Interface:
-		return encodeBlockList(in, repeatBlock)
+		return encodeBlockList(in, meta)
 	default:
-		return encodePrimitiveList(in)
+		return encodePrimitiveList(in, meta)
 	}
 }
 
 // encodePrimitiveList converts a slice of primitive values to an ast.ListType. An
 // ast.ObjectKey is never returned.
-func encodePrimitiveList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+func encodePrimitiveList(in reflect.Value, meta fieldMeta) (ast.Node, []*ast.ObjectKey, error) {
 	l := in.Len()
 	n := &ast.ListType{List: make([]ast.Node, 0, l)}
 
 	for i := 0; i < l; i++ {
-		child, _, err := encode(in.Index(i))
+		child, _, err := encodeField(in.Index(i), meta)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -157,20 +157,20 @@ func encodePrimitiveList(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 
 // encodeBlockList converts a slice of non-primitive types to an ast.ObjectList. An
 // ast.ObjectKey is never returned.
-func encodeBlockList(in reflect.Value, repeatBlock bool) (ast.Node, []*ast.ObjectKey, error) {
+func encodeBlockList(in reflect.Value, meta fieldMeta) (ast.Node, []*ast.ObjectKey, error) {
 	l := in.Len()
 	n := &ast.ObjectList{Items: make([]*ast.ObjectItem, 0, l)}
 
 	for i := 0; i < l; i++ {
-		child, childKey, err := encode(in.Index(i))
+		child, childKey, err := encodeField(in.Index(i), meta)
 		if err != nil {
 			return nil, nil, err
 		}
 		if child == nil {
 			continue
 		}
-		if childKey == nil && !repeatBlock {
-			return encodePrimitiveList(in)
+		if childKey == nil && !meta.repeatBlock {
+			return encodePrimitiveList(in, meta)
 		}
 
 		item := &ast.ObjectItem{Val: child}

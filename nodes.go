@@ -370,16 +370,11 @@ func tokenize(in reflect.Value, unquotedString bool) (t token.Token, err error) 
 		}
 		return token.Token{
 			Type: token.STRING,
-			Text: fmt.Sprintf(`"%s"`, escapeString(in.String())),
+			Text: strconv.Quote(in.String()),
 		}, nil
 	}
 
 	return t, fmt.Errorf("cannot encode primitive kind %s to token", in.Kind())
-}
-
-// escapes \ and "
-func escapeString(s string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), `"`, `\"`)
 }
 
 // extractFieldMeta pulls information about struct fields and the optional HCL tags

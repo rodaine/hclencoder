@@ -1,6 +1,6 @@
 String = "bar"
 
-EscapedString = "\"\\"
+EscapedString = "\"\\\n\t"
 
 Int = 123
 

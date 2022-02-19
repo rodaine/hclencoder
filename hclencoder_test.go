@@ -32,7 +32,8 @@ func TestEncoder(t *testing.T) {
 				Float         float64
 			}{
 				"bar",
-				`"\`,
+				`"\
+	`,
 				123,
 				true,
 				4.56,

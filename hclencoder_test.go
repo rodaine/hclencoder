@@ -25,12 +25,14 @@ func TestEncoder(t *testing.T) {
 		{
 			ID: "basic struct",
 			Input: struct {
-				String string
-				Int    int
-				Bool   bool
-				Float  float64
+				String        string
+				EscapedString string
+				Int           int
+				Bool          bool
+				Float         float64
 			}{
 				"bar",
+				`"\`,
 				123,
 				true,
 				4.56,
@@ -222,7 +224,8 @@ func TestEncoder(t *testing.T) {
 			}
 
 			assert.NoError(t, err, test.ID)
-			assert.EqualValues(t,
+			assert.EqualValues(
+				t,
 				string(expected),
 				string(actual),
 				fmt.Sprintf("%s\nExpected:\n%s\nActual:\n%s", test.ID, expected, actual),

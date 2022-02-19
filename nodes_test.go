@@ -120,9 +120,11 @@ func TestEncodePrimitive(t *testing.T) {
 		},
 	}
 
-	RunAll(tests, func(value reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
-		return encodePrimitive(value, false)
-	}, t)
+	RunAll(
+		tests, func(value reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+			return encodePrimitive(value, false)
+		}, t,
+	)
 }
 
 func TestEncodeList(t *testing.T) {
@@ -239,9 +241,11 @@ func TestEncodeList(t *testing.T) {
 		},
 	}
 
-	RunAll(tests, func(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
-		return encodeList(in, false)
-	}, t)
+	RunAll(
+		tests, func(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+			return encodeList(in, fieldMeta{})
+		}, t,
+	)
 }
 
 func TestEncodeMap(t *testing.T) {
@@ -290,16 +294,18 @@ func TestEncodeMap(t *testing.T) {
 		},
 		{
 			ID: "keyed list",
-			Input: reflect.ValueOf(map[string][]map[string]interface{}{
-				"obj1": {
-					{"foo": "bar"},
-					{"boo": "hoo"},
+			Input: reflect.ValueOf(
+				map[string][]map[string]interface{}{
+					"obj1": {
+						{"foo": "bar"},
+						{"boo": "hoo"},
+					},
+					"obj2": {
+						{"foo": "bar"},
+						{"boo": "hoo"},
+					},
 				},
-				"obj2": {
-					{"foo": "bar"},
-					{"boo": "hoo"},
-				},
-			}),
+			),
 			Expected: &ast.ObjectType{List: &ast.ObjectList{Items: []*ast.ObjectItem{
 				&ast.ObjectItem{
 					Keys: []*ast.ObjectKey{{Token: token.Token{Type: token.IDENT, Text: "obj1"}}},

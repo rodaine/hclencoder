@@ -111,7 +111,7 @@ func Example() {
 	//   says = "meow"
 	// }
 	//
-	// buildings {
+	// buildings =  {
 	//   Barn  = "456 Digits Drive"
 	//   House = "123 Numbers Lane"
 	// }

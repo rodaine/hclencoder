@@ -1,5 +1,7 @@
 String = "bar"
 
+EscapedString = "\"\\"
+
 Int = 123
 
 Bool = true

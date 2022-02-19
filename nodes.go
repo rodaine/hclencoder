@@ -207,10 +207,12 @@ func encodeMap(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 			itemKey := &ast.ObjectKey{Token: tkn}
 			for _, obj := range typ.Items {
 				keys := append([]*ast.ObjectKey{itemKey}, obj.Keys...)
-				l = append(l, &ast.ObjectItem{
-					Keys: keys,
-					Val:  obj.Val,
-				})
+				l = append(
+					l, &ast.ObjectItem{
+						Keys: keys,
+						Val:  obj.Val,
+					},
+				)
 			}
 
 		default:
@@ -306,10 +308,12 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 		if objectList, ok := val.(*ast.ObjectList); ok {
 			for _, obj := range objectList.Items {
 				objectKeys := append([]*ast.ObjectKey{itemKey}, obj.Keys...)
-				list.Add(&ast.ObjectItem{
-					Keys: objectKeys,
-					Val:  obj.Val,
-				})
+				list.Add(
+					&ast.ObjectItem{
+						Keys: objectKeys,
+						Val:  obj.Val,
+					},
+				)
 			}
 			continue
 		}
@@ -366,11 +370,16 @@ func tokenize(in reflect.Value, unquotedString bool) (t token.Token, err error) 
 		}
 		return token.Token{
 			Type: token.STRING,
-			Text: fmt.Sprintf(`"%s"`, in.String()),
+			Text: fmt.Sprintf(`"%s"`, escapeString(in.String())),
 		}, nil
 	}
 
 	return t, fmt.Errorf("cannot encode primitive kind %s to token", in.Kind())
+}
+
+// escapes \ and "
+func escapeString(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), `"`, `\"`)
 }
 
 // extractFieldMeta pulls information about struct fields and the optional HCL tags

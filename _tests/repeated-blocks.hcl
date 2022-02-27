@@ -1,3 +1,4 @@
-Widget {}
-
-Widget {}
+Widget {
+}
+Widget {
+}

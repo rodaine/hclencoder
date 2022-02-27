@@ -3,13 +3,13 @@ package hclencoder
 import (
 	"errors"
 	"fmt"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/zclconf/go-cty/cty"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
-
-	"github.com/hashicorp/hcl/hcl/ast"
-	"github.com/hashicorp/hcl/hcl/token"
 )
 
 const (
@@ -70,15 +70,15 @@ type fieldMeta struct {
 	omitEmpty     bool
 }
 
-func encode(in reflect.Value) (node ast.Node, key []*ast.ObjectKey, err error) {
+func encode(in reflect.Value) (node *Node, err error) {
 	return encodeField(in, fieldMeta{})
 }
 
 // encode converts a reflected valued into an HCL ast.Node in a depth-first manner.
-func encodeField(in reflect.Value, meta fieldMeta) (node ast.Node, key []*ast.ObjectKey, err error) {
+func encodeField(in reflect.Value, meta fieldMeta) (node *Node, err error) {
 	in, isNil := deref(in)
 	if isNil {
-		return nil, nil, nil
+		return nil, nil
 	}
 
 	switch in.Kind() {
@@ -86,36 +86,38 @@ func encodeField(in reflect.Value, meta fieldMeta) (node ast.Node, key []*ast.Ob
 	case reflect.Bool, reflect.Float64, reflect.String,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return encodePrimitive(in, meta.expression)
+		return encodePrimitive(in, meta)
 
 	case reflect.Slice:
 		return encodeList(in, meta)
 
 	case reflect.Map:
-		return encodeMap(in)
+		return encodePrimitive(in, meta)
 
 	case reflect.Struct:
-		return encodeStruct(in)
-
+		return encodeStruct(in, meta)
 	default:
-		return nil, nil, fmt.Errorf("cannot encode kind %s to HCL", in.Kind())
+		return nil, fmt.Errorf("cannot encode kind %s to HCL", in.Kind())
 	}
 }
 
-// encodePrimitive converts a primitive value into an ast.LiteralType. An
-// ast.ObjectKey is never returned.
-func encodePrimitive(in reflect.Value, expr bool) (ast.Node, []*ast.ObjectKey, error) {
-	tkn, err := tokenize(in, expr)
+// encodePrimitive converts a primitive value into a Node contains its tokens
+func encodePrimitive(in reflect.Value, meta fieldMeta) (*Node, error) {
+	// Keys must be literals, so we don't tokenize.
+	if meta.key {
+		k := cty.StringVal(in.String())
+		return &Node{Value: &k}, nil
+	}
+	tkn, err := tokenize(in, meta)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return &ast.LiteralType{Token: tkn}, nil, nil
+	return &Node{Tokens: tkn}, nil
 }
 
-// encodeList converts a slice to an appropriate ast.Node type depending on its
-// element value type. An ast.ObjectKey is never returned.
-func encodeList(in reflect.Value, meta fieldMeta) (ast.Node, []*ast.ObjectKey, error) {
+// encodeList converts a slice into either a block list or a primitive list depending on its element type
+func encodeList(in reflect.Value, meta fieldMeta) (*Node, error) {
 	childType := in.Type().Elem()
 
 childLoop:
@@ -138,119 +140,60 @@ childLoop:
 
 // encodePrimitiveList converts a slice of primitive values to an ast.ListType. An
 // ast.ObjectKey is never returned.
-func encodePrimitiveList(in reflect.Value, meta fieldMeta) (ast.Node, []*ast.ObjectKey, error) {
-	l := in.Len()
-	n := &ast.ListType{List: make([]ast.Node, 0, l)}
-
-	for i := 0; i < l; i++ {
-		child, _, err := encodeField(in.Index(i), meta)
-		if err != nil {
-			return nil, nil, err
-		}
-		if child != nil {
-			n.Add(child)
-		}
-	}
-
-	return n, nil, nil
+func encodePrimitiveList(in reflect.Value, meta fieldMeta) (*Node, error) {
+	return encodePrimitive(in, meta)
 }
 
 // encodeBlockList converts a slice of non-primitive types to an ast.ObjectList. An
 // ast.ObjectKey is never returned.
-func encodeBlockList(in reflect.Value, meta fieldMeta) (ast.Node, []*ast.ObjectKey, error) {
-	l := in.Len()
-	n := &ast.ObjectList{Items: make([]*ast.ObjectItem, 0, l)}
+func encodeBlockList(in reflect.Value, meta fieldMeta) (*Node, error) {
+	var blocks []*hclwrite.Block
 
-	for i := 0; i < l; i++ {
-		child, childKey, err := encodeField(in.Index(i), meta)
+	if !meta.repeatBlock {
+		return encodePrimitiveList(in, meta)
+	}
+
+	for i := 0; i < in.Len(); i++ {
+		node, err := encodeStruct(in.Index(i), meta)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		if child == nil {
+		if node == nil {
 			continue
 		}
-		if childKey == nil && !meta.repeatBlock {
-			return encodePrimitiveList(in, meta)
-		}
-
-		item := &ast.ObjectItem{Val: child}
-		item.Keys = childKey
-		n.Add(item)
+		blocks = append(blocks, node.Block)
 	}
 
-	return n, nil, nil
+	return &Node{BlockList: blocks}, nil
 }
 
-// encodeMap converts a map type into an ast.ObjectType. Maps must have string
-// key values to be encoded. An ast.ObjectKey is never returned.
-func encodeMap(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
-	if keyType := in.Type().Key().Kind(); keyType != reflect.String {
-		return nil, nil, fmt.Errorf("map keys must be strings, %s given", keyType)
-	}
-
-	l := make(objectItems, 0, in.Len())
-	for _, key := range in.MapKeys() {
-		tkn, _ := tokenize(key, true) // error impossible since we've already checked key kind
-
-		val, childKey, err := encode(in.MapIndex(key))
-		if err != nil {
-			return nil, nil, err
-		}
-		if val == nil {
-			continue
-		}
-
-		switch typ := val.(type) {
-		case *ast.ObjectList:
-			// If the item is an object list, we need to flatten out the items.
-			// Child keys are assumed to be added to the above call to encode
-			itemKey := &ast.ObjectKey{Token: tkn}
-			for _, obj := range typ.Items {
-				keys := append([]*ast.ObjectKey{itemKey}, obj.Keys...)
-				l = append(
-					l, &ast.ObjectItem{
-						Keys: keys,
-						Val:  obj.Val,
-					},
-				)
-			}
-
-		default:
-			item := &ast.ObjectItem{
-				Keys: []*ast.ObjectKey{{Token: tkn}},
-				Val:  val,
-			}
-			if childKey != nil {
-				item.Keys = append(item.Keys, childKey...)
-			}
-			l = append(l, item)
-
-		}
-
-	}
-
-	sort.Sort(l)
-
-	// here we wrap the map into an object with an empty key, just so that the map is not treated as an HCL object and
-	// is instead viewed an opaque node that can be used in an assignment. this is what happens when we try to write
-	// HCL2 with a HCL1 framework :)
-	return &ast.ObjectItem{
-		Keys: []*ast.ObjectKey{
-			{Token: token.Token{
-				Type: token.STRING,
-				Text: "",
-			}},
-		}, Val: &ast.ObjectType{List: &ast.ObjectList{Items: l}},
-	}, nil, nil
+type Node struct {
+	Block     *hclwrite.Block
+	BlockList []*hclwrite.Block
+	Value     *cty.Value
+	Tokens    hclwrite.Tokens
 }
 
-// encodeStruct converts a struct type into an ast.ObjectType. An ast.ObjectKey
-// may be returned if a KeyTag is present that should be used by a parent
-// ast.ObjectItem if this node is nested.
-func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
+func (n Node) isValue() bool {
+	return n.Value != nil
+}
+
+func (n Node) isBlock() bool {
+	return n.Block != nil
+}
+
+func (n Node) isBlockList() bool {
+	return n.BlockList != nil
+}
+
+func (n Node) isTokens() bool {
+	return n.Tokens != nil
+}
+
+// encodeStruct converts a struct type into a block
+func encodeStruct(in reflect.Value, parentMeta fieldMeta) (*Node, error) {
 	l := in.NumField()
-	list := &ast.ObjectList{Items: make([]*ast.ObjectItem, 0, l)}
-	keys := make([]*ast.ObjectKey, 0)
+	block := hclwrite.NewBlock(parentMeta.name, nil)
 
 	for i := 0; i < l; i++ {
 		field := in.Type().Field(i)
@@ -262,8 +205,6 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 			continue
 		}
 
-		tkn, _ := tokenize(reflect.ValueOf(meta.name), true) // impossible to not be string
-
 		// if the OmitEmptyTag is provided, check if the value is its zero value.
 		rawVal := in.Field(i)
 		if meta.omitEmpty {
@@ -273,9 +214,9 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 			}
 		}
 
-		val, childKeys, err := encodeField(rawVal, meta)
+		val, err := encodeField(rawVal, meta)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if val == nil {
 			continue
@@ -283,98 +224,213 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 
 		// this field is a key and should be bubbled up to the parent node
 		if meta.key {
-			if lit, ok := val.(*ast.LiteralType); ok && lit.Token.Type == token.STRING {
-				keys = append(keys, &ast.ObjectKey{Token: lit.Token})
+			if val.isValue() && (*val.Value).Type() == cty.String {
+				label := (*val.Value).AsString()
+				block.SetLabels(append(block.Labels(), label))
 				continue
 			}
-			return nil, nil, errors.New("struct key fields must be string literals")
+			return nil, errors.New("struct key fields must be string literals")
 		}
 
-		// this field is anonymous and should be squashed into the parent struct's fields
-		if meta.squash {
-			switch val := val.(type) {
-			case *ast.ObjectType:
-				list.Items = append(list.Items, val.List.Items...)
-				if childKeys != nil {
-					keys = childKeys
+		if meta.squash && !val.isBlock() {
+			return nil, errors.New("squash fields must be structs")
+		}
+
+		if val.isBlock() {
+			if meta.squash {
+				SquashBlock(val.Block, block.Body())
+				for _, label := range val.Block.Labels() {
+					block.SetLabels(append(block.Labels(), label))
 				}
-				continue
-			}
-		}
-
-		itemKey := &ast.ObjectKey{Token: tkn}
-
-		// if the item is an object list, we need to flatten out the items
-		if objectList, ok := val.(*ast.ObjectList); ok {
-			for _, obj := range objectList.Items {
-				objectKeys := append([]*ast.ObjectKey{itemKey}, obj.Keys...)
-				list.Add(
-					&ast.ObjectItem{
-						Keys: objectKeys,
-						Val:  obj.Val,
-					},
-				)
+			} else {
+				block.Body().AppendBlock(val.Block)
 			}
 			continue
+		} else if val.isBlockList() {
+			for _, innerBlock := range val.BlockList {
+				block.Body().AppendBlock(innerBlock)
+			}
+		} else if val.isValue() {
+			block.Body().SetAttributeValue(meta.name, *val.Value)
+		} else if val.isTokens() {
+			block.Body().SetAttributeRaw(meta.name, val.Tokens)
+		} else {
+			return nil, errors.New("unknown value type")
 		}
 
-		item := &ast.ObjectItem{
-			Keys: []*ast.ObjectKey{itemKey},
-			Val:  val,
-		}
-		if childKeys != nil {
-			item.Keys = append(item.Keys, childKeys...)
-		}
-		list.Add(item)
 	}
-	if len(keys) == 0 {
-		return &ast.ObjectType{List: list}, nil, nil
-	}
-	return &ast.ObjectType{List: list}, keys, nil
+
+	return &Node{Block: block}, nil
 }
 
-// tokenize converts a primitive type into an token.Token. IDENT tokens (unquoted strings)
-// can be optionally triggered for any string types.
-func tokenize(in reflect.Value, unquotedString bool) (t token.Token, err error) {
-	switch in.Kind() {
-	case reflect.Bool:
-		return token.Token{
-			Type: token.BOOL,
-			Text: strconv.FormatBool(in.Bool()),
-		}, nil
+func SquashBlock(innerBlock *hclwrite.Block, block *hclwrite.Body) {
+	tkns := innerBlock.Body().BuildTokens(nil)
+	block.AppendUnstructuredTokens(tkns)
 
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return token.Token{
-			Type: token.NUMBER,
-			Text: fmt.Sprintf("%d", in.Uint()),
-		}, nil
+}
 
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return token.Token{
-			Type: token.NUMBER,
-			Text: fmt.Sprintf("%d", in.Int()),
-		}, nil
+func convertTokens(tokens hclsyntax.Tokens) hclwrite.Tokens {
+	var result []*hclwrite.Token
+	for _, token := range tokens {
+		result = append(result, &hclwrite.Token{
+			Type:         token.Type,
+			Bytes:        token.Bytes,
+			SpacesBefore: 0,
+		})
+	}
+	return result
+}
 
-	case reflect.Float64:
-		return token.Token{
-			Type: token.FLOAT,
-			Text: strconv.FormatFloat(in.Float(), 'g', -1, 64),
-		}, nil
+// tokenize converts a primitive type into tokens. structs and maps are converted into objects and slices are converted
+// into tuples.
+func tokenize(in reflect.Value, meta fieldMeta) (tkns hclwrite.Tokens, err error) {
 
-	case reflect.String:
-		if unquotedString {
-			return token.Token{
-				Type: token.IDENT,
-				Text: in.String(),
-			}, nil
-		}
-		return token.Token{
-			Type: token.STRING,
-			Text: strconv.Quote(in.String()),
-		}, nil
+	tokenEqual := hclwrite.Token{
+		Type:         hclsyntax.TokenEqual,
+		Bytes:        []byte("="),
+		SpacesBefore: 0,
+	}
+	tokenComma := hclwrite.Token{
+		Type:         hclsyntax.TokenComma,
+		Bytes:        []byte(","),
+		SpacesBefore: 0,
+	}
+	tokenOCurlyBrace := hclwrite.Token{
+		Type:         hclsyntax.TokenOBrace,
+		Bytes:        []byte("{"),
+		SpacesBefore: 0,
+	}
+	tokenCCurlyBrace := hclwrite.Token{
+		Type:         hclsyntax.TokenCBrace,
+		Bytes:        []byte("}"),
+		SpacesBefore: 0,
 	}
 
-	return t, fmt.Errorf("cannot encode primitive kind %s to token", in.Kind())
+	switch in.Kind() {
+	case reflect.Bool:
+		return hclwrite.TokensForValue(cty.BoolVal(in.Bool())), nil
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return hclwrite.TokensForValue(cty.NumberUIntVal(in.Uint())), nil
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return hclwrite.TokensForValue(cty.NumberIntVal(in.Int())), nil
+
+	case reflect.Float64:
+		return hclwrite.TokensForValue(cty.NumberFloatVal(in.Float())), nil
+
+	case reflect.String:
+		val := in.String()
+		if !meta.expression {
+			val = fmt.Sprintf(`"%s"`, EscapeString(val))
+		}
+		// Unfortunately hcl escapes template expressions (${...}) when using hclwrite.TokensForValue. So we escape
+		// everything but template expressions and then parse the expression into tokens.
+		tokens, diags := hclsyntax.LexExpression([]byte(val), meta.name, hcl.Pos{
+			Line:   0,
+			Column: 0,
+			Byte:   0,
+		})
+
+		if diags != nil {
+			return nil, fmt.Errorf("error when parsing string %s: %v", val, diags.Error())
+		}
+		return convertTokens(tokens), nil
+	case reflect.Pointer, reflect.Interface:
+		val, isNil := deref(in)
+		if isNil {
+			return nil, nil
+		}
+		return tokenize(val, meta)
+	case reflect.Struct:
+		var tokens []*hclwrite.Token
+		tokens = append(tokens, &tokenOCurlyBrace)
+		for i := 0; i < in.NumField(); i++ {
+			field := in.Type().Field(i)
+			meta := extractFieldMeta(field)
+
+			rawVal := in.Field(i)
+			if meta.omitEmpty {
+				zeroVal := reflect.Zero(rawVal.Type()).Interface()
+				if reflect.DeepEqual(rawVal.Interface(), zeroVal) {
+					continue
+				}
+			}
+			val, err := tokenize(rawVal, meta)
+			if err != nil {
+				return nil, err
+			}
+			for _, tkn := range hclwrite.TokensForValue(cty.StringVal(meta.name)) {
+				tokens = append(tokens, tkn)
+			}
+			tokens = append(tokens, &tokenEqual)
+			for _, tkn := range val {
+				tokens = append(tokens, tkn)
+			}
+			if i < in.NumField()-1 {
+				tokens = append(tokens, &tokenComma)
+			}
+		}
+		tokens = append(tokens, &tokenCCurlyBrace)
+		return tokens, nil
+	case reflect.Slice:
+		var tokens []*hclwrite.Token
+		tokens = append(tokens, &hclwrite.Token{
+			Type:         hclsyntax.TokenOBrace,
+			Bytes:        []byte("["),
+			SpacesBefore: 0,
+		})
+		for i := 0; i < in.Len(); i++ {
+			value, err := tokenize(in.Index(i), meta)
+			if err != nil {
+				return nil, err
+			}
+			for _, tkn := range value {
+				tokens = append(tokens, tkn)
+			}
+			if i < in.Len()-1 {
+				tokens = append(tokens, &tokenComma)
+			}
+		}
+		tokens = append(tokens, &hclwrite.Token{
+			Type:         hclsyntax.TokenCBrace,
+			Bytes:        []byte("]"),
+			SpacesBefore: 0,
+		})
+		return tokens, nil
+	case reflect.Map:
+		if keyType := in.Type().Key().Kind(); keyType != reflect.String {
+			return nil, fmt.Errorf("map keys must be strings, %s given", keyType)
+		}
+		var tokens []*hclwrite.Token
+		tokens = append(tokens, &tokenOCurlyBrace)
+
+		var keys []string
+		for _, k := range in.MapKeys() {
+			keys = append(keys, k.String())
+		}
+		sort.Strings(keys)
+		for i, k := range keys {
+			val, err := tokenize(in.MapIndex(reflect.ValueOf(k)), meta)
+			if err != nil {
+				return nil, err
+			}
+			for _, tkn := range hclwrite.TokensForValue(cty.StringVal(k)) {
+				tokens = append(tokens, tkn)
+			}
+			tokens = append(tokens, &tokenEqual)
+			for _, tkn := range val {
+				tokens = append(tokens, tkn)
+			}
+			if i < len(keys)-1 {
+				tokens = append(tokens, &tokenComma)
+			}
+		}
+		tokens = append(tokens, &tokenCCurlyBrace)
+		return tokens, nil
+	}
+
+	return nil, fmt.Errorf("cannot encode primitive kind %s to token", in.Kind())
 }
 
 // extractFieldMeta pulls information about struct fields and the optional HCL tags
@@ -440,20 +496,4 @@ func deref(in reflect.Value) (val reflect.Value, isNil bool) {
 	default:
 		return in, false
 	}
-}
-
-type objectItems []*ast.ObjectItem
-
-func (ol objectItems) Len() int      { return len(ol) }
-func (ol objectItems) Swap(i, j int) { ol[i], ol[j] = ol[j], ol[i] }
-func (ol objectItems) Less(i, j int) bool {
-	iKeys := ol[i].Keys
-	jKeys := ol[j].Keys
-	for k := 0; k < len(iKeys) && k < len(jKeys); k++ {
-		if iKeys[k].Token.Text == jKeys[k].Token.Text {
-			continue
-		}
-		return iKeys[k].Token.Text < jKeys[k].Token.Text
-	}
-	return len(iKeys) <= len(jKeys)
 }

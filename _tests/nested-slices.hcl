@@ -1,12 +1,1 @@
- {
-  bar = [
-    ["bar"],
-    ["baz"],
-    ["buzz"],
-  ]
-
-  foo = [
-    "bar",
-    "baz",
-  ]
-}
+Value = { "bar" = [["bar"], ["baz"], ["buzz"]], "foo" = ["bar", "baz"] }

@@ -1,3 +1,4 @@
-Widget "bar" {}
-
-Widget "baz" {}
+Widget "bar" {
+}
+Widget "baz" {
+}

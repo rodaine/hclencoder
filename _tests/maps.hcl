@@ -1,5 +1,3 @@
 Foo {
-  KeyVals =  {
-    baz = "buzz"
-  }
+  KeyVals = { "baz" = "buzz" }
 }

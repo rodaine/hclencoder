@@ -1,5 +1,1 @@
-Expressions = [
-  foo,
-  bar,
-  baz,
-]
+Expressions = [file("foo"), bar, baz]

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type encoderTest struct {
+type encoderTest2 struct {
 	ID     string
 	Input  interface{}
 	Output string
@@ -16,7 +16,7 @@ type encoderTest struct {
 }
 
 func TestEncoder(t *testing.T) {
-	tests := []encoderTest{
+	tests := []encoderTest2{
 		{
 			ID:     "empty struct",
 			Input:  struct{}{},
@@ -39,6 +39,17 @@ func TestEncoder(t *testing.T) {
 				4.56,
 			},
 			Output: "basic",
+		},
+		{
+			ID: "escaped strings",
+			Input: struct {
+				EscapedString  string
+				TemplateString string
+			}{
+				"\n\t\r\\\"",
+				"\n\t\r\\\" ${\"\\\\ \\\"\"}",
+			},
+			Output: "escaped-strings",
 		},
 		{
 			ID: "basic struct with expression",
@@ -78,7 +89,7 @@ func TestEncoder(t *testing.T) {
 			Input: struct {
 				Expressions []string `hcl:",expr"`
 			}{
-				[]string{"foo", "bar", "baz"},
+				[]string{"file(\"foo\")", "bar", "baz"},
 			},
 			Output: "expr-slices",
 		},
@@ -146,7 +157,7 @@ func TestEncoder(t *testing.T) {
 			Input: struct {
 				Widget []struct {
 					Foo string `hcl:"foo,key"`
-				}
+				} `hcl:",blocks"`
 			}{
 				[]struct {
 					Foo string `hcl:"foo,key"`
@@ -192,7 +203,9 @@ func TestEncoder(t *testing.T) {
 		},
 		{
 			ID: "nested slices",
-			Input: map[string]interface{}{
+			Input: struct {
+				Value map[string]interface{}
+			}{Value: map[string]interface{}{
 				"foo": []interface{}{
 					"bar", "baz",
 				},
@@ -207,13 +220,16 @@ func TestEncoder(t *testing.T) {
 						"buzz",
 					},
 				},
-			},
+			}},
 			Output: "nested-slices",
 		},
 	}
 
 	for _, test := range tests {
 		actual, err := Encode(test.Input)
+		if err != nil {
+			t.Error(err)
+		}
 
 		if test.Error {
 			assert.Error(t, err, test.ID)

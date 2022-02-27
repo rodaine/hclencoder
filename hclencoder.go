@@ -1,35 +1,37 @@
 package hclencoder
 
 import (
-	"bytes"
+	"errors"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"reflect"
-
-	"github.com/hashicorp/hcl/hcl/ast"
-	"github.com/hashicorp/hcl/hcl/printer"
 )
 
 // Encode converts any supported type into the corresponding HCL format
 func Encode(in interface{}) ([]byte, error) {
-	node, _, err := encode(reflect.ValueOf(in))
+	node, err := encode(reflect.ValueOf(in))
 	if err != nil {
 		return nil, err
 	}
 
-	file := &ast.File{}
-	switch node := node.(type) {
-	case *ast.ObjectType:
-		file.Node = node.List
-	default:
-		file.Node = node
+	f := hclwrite.NewEmptyFile()
+	if node.isBlock() {
+		addRootBlock(node.Block, f)
+	} else if node.isBlockList() {
+		for _, block := range node.BlockList {
+			f.Body().AppendBlock(block)
+		}
+	} else {
+		return nil, errors.New("invalid root type - needs to be a block or block list")
 	}
 
-	if _, err = positionNodes(file, startingCursor, 2); err != nil {
-		return nil, err
+	return hclwrite.Format(f.Bytes()), nil
+}
+
+func addRootBlock(block *hclwrite.Block, f *hclwrite.File) {
+	// root blocks without types are squashed by default
+	if block.Type() == "" {
+		SquashBlock(block, f.Body())
+	} else {
+		f.Body().AppendBlock(block)
 	}
-
-	b := &bytes.Buffer{}
-	err = printer.Fprint(b, file)
-	b.WriteString("\n")
-
-	return b.Bytes(), err
 }

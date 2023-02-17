@@ -277,7 +277,7 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 			case *ast.ObjectType:
 				list.Items = append(list.Items, val.List.Items...)
 				if childKeys != nil {
-					keys = childKeys
+					keys = append(keys, childKeys...)
 				}
 				continue
 			}

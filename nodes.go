@@ -27,6 +27,11 @@ const (
 	// the key for the value.
 	SquashTag string = "squash"
 
+	// ForceSquashTag is attached to a struct or a map and indicates
+	// to the encoder to always lift the fields of that value into the
+	// parent block's scope transparently.
+	ForceSquashTag string = "forceSquash"
+
 	// UnusedKeysTag is a flag that indicates any unused keys found by the
 	// decoder are stored in this field of type []string. This has the same
 	// behavior as the OmitTag and is not encoded.
@@ -55,6 +60,7 @@ type fieldMeta struct {
 	name          string
 	key           bool
 	squash        bool
+	forceSquash   bool
 	unusedKeys    bool
 	decodedFields bool
 	omit          bool
@@ -266,7 +272,7 @@ func encodeStruct(in reflect.Value) (ast.Node, []*ast.ObjectKey, error) {
 		}
 
 		// this field is anonymous and should be squashed into the parent struct's fields
-		if meta.anonymous && meta.squash {
+		if (meta.anonymous && meta.squash) || meta.forceSquash {
 			switch val := val.(type) {
 			case *ast.ObjectType:
 				list.Items = append(list.Items, val.List.Items...)
@@ -371,6 +377,8 @@ func extractFieldMeta(f reflect.StructField) (meta fieldMeta) {
 				meta.key = true
 			case SquashTag:
 				meta.squash = true
+			case ForceSquashTag:
+				meta.forceSquash = true
 			case DecodedFieldsTag:
 				meta.decodedFields = true
 			case UnusedKeysTag:
